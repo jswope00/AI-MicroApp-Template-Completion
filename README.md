@@ -3,7 +3,7 @@
 ## Overview
 This AI MicroApp template is a simple Streamlit application that demonstrates how to integrate AI models with a web interface using Streamlit. It means that you can build and share AI "MicroApps" as simply as building a form. 
 
-It works with the Completion API and similar. Meaning, it is a "one-shot" request and there is no memory of a conversation like with a chatbot. 
+It works with the Completion API and similar. Meaning, it is a "one-shot" request and there is no memory of a conversation like with a chatbot. It is most suitable for one-off requests where prompting is important. For example, "Write me MCQs from this content..." or "Generate a storyboard based on these learning objectives..."
 
 It also doesn't store data anywhere except for some storage required in the local browser which is cleared after the session ends. 
 
@@ -13,18 +13,37 @@ It also doesn't store data anywhere except for some storage required in the loca
 - virtualenv (optional but recommended)
 - OpenAI, Claude, and/or Google Gemini API key(s)
 
-## Setup Instructions
+## Local Setup Instructions
 
-### 1. Create a Virtual Environment
+### 1. Clone the repository
 
-To create a virtual environment, navigate to your project directory in the terminal and run the following command:
+Navigate to a location where you'd like to run this app from, and clone the repo:
 
-It's recommended to isolate the project's dependencies using a virtual environment. You can utilize tools like venv or virtualenv to achieve this. Refer to official documentation for specific commands based on your chosen tool.
+```bash
+git clone https://github.com/jswope00/AI-MicroApp-Template-Completion.git
+```
 
-### 2. Install Requirements
+### 2. Create a Virtual Environment
+
+To create a virtual environment, navigate to your project directory in the terminal:
+```bash
+cd AI-MicroApp-Template-Completion
+```
+
+It's recommended to isolate the project's dependencies using a virtual environment. You can utilize tools like venv or virtualenv to achieve this. Refer to official documentation for specific commands based on your chosen tool. Here is the command from a mac shell:
+```bash
+python3 -m venv venv
+```
+
+Finally, activate your virtual environment:
+```bash
+source venv/bin/activate
+```
+
+### 3. Install Requirements
 Activate your virtual environment and install the required packages using pip:
 ```bash
-pip install streamlit openai dotenv
+pip3 install -r requirements.txt
 ```
 
 ### 3. Add your API key(s):
