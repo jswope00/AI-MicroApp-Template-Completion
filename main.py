@@ -3,9 +3,11 @@ from dotenv import find_dotenv, load_dotenv
 from datetime import datetime, timedelta
 import json
 from openai import OpenAI
+from gemini import Gemini
 
 load_dotenv()
-client = OpenAI()
+openai_client = OpenAI()
+gemini_client = Gemini(model_name="text-bison-001")
 
 ########  GENERAL APP INFORMATION  ##############
 
@@ -64,7 +66,8 @@ prompt = {
 final_prompt = ""
 
 ######## AI CONFIGURATION #############
-AI_MODEL = "gpt-3.5-turbo-0125"
+OPENAI_MODEL = "gpt-3.5-turbo-0125"
+GEMINI_MODEL = "text-bison-001"
 FREQUENCY_PENALTY = 0
 MAX_TOKENS = 1000
 PRESENCE_PENALTY = 0
@@ -142,19 +145,25 @@ def build_fields(i, my_dict):
 # Define a function for the button click
 def ai_handler():
     ai_prompt = build_prompt()
-    response = client.chat.completions.create(
-    model=AI_MODEL,
-    frequency_penalty=FREQUENCY_PENALTY,
-    max_tokens=MAX_TOKENS,
-    presence_penalty=PRESENCE_PENALTY,
-    temperature=TEMPERATURE,
-    top_p=TOP_P,
-    messages=[
-        {"role": "user", "content": ai_prompt}
+    # Send the prompt to both OpenAI and Google Gemini
+    openai_response = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        frequency_penalty=FREQUENCY_PENALTY,
+        max_tokens=MAX_TOKENS,
+        presence_penalty=PRESENCE_PENALTY,
+        temperature=TEMPERATURE,
+        top_p=TOP_P,
+        messages=[
+            {"role": "user", "content": ai_prompt}
         ],
-    stream=True   
+        stream=True
     )
-    st.write(response)
+    gemini_response = gemini_client.generate(ai_prompt)
+    # Display both responses in the Streamlit app
+    st.write("OpenAI Response:")
+    st.write(openai_response)
+    st.write("Google Gemini Response:")
+    st.write(gemini_response)
 
 def build_prompt():
 
