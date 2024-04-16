@@ -51,7 +51,7 @@ Create a file named .env in your project's root directory. Paste your API key(s)
 
 ## Running the App
 
-### 1. Start the app
+### Running Locally
 
 Navigate to your project directory in the terminal and execute the following command to launch the Streamlit app:
 ```bash
@@ -60,6 +60,17 @@ streamlit run main.py
 
 This will open the Birthday App in your web browser, typically at http://localhost:8501.
 
+### Running a Web App
+
+This app is built to be hosted on Streamlit and can be deployed with [Streamlit's 3-step deployment process]([url](https://docs.streamlit.io/get-started/tutorials/create-an-app#share-your-app)): 
+
+1. Put your app in a public GitHub repo (and make sure it has a requirements.txt!)
+2. Sign into share.streamlit.io
+3. Click 'Deploy an app' and then paste in your GitHub URL
+
+Streamlit is a platform for hosting and sharing web apps. Community (public) apps are free to host. In addition, this template is built using only temporary local storage and no database, for ease of setup and data privacy. 
+
+Deployment outside of Streamlit is certainly possible but outside the scope of this README.
 
 ### Explanation
 
