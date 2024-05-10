@@ -3,8 +3,18 @@ import streamlit as st
 from config import *
 from datetime import datetime, timedelta
 import json
+import os
 from openai import OpenAI
+from google import generativeai
+import anthropic
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+openai_api_key = os.getenv('OPENAI_API_KEY')
+gemini_api_key = os.getenv('GOOGLE_API_KEY')
+claude_api_key = os.getenv('CLAUDE_API_KEY')
 
 user_input = {}
 function_map = {
@@ -59,28 +69,58 @@ def build_fields(i, my_dict):
         globals()[field_name] = user_input[field_name]
 def ai_handler():
     ai_prompt = build_prompt()
-    selected_llm = st.session_state['selected_llm']
-    llm_configuration = LLM_CONFIGURATIONS[selected_llm]
-    if selected_llm == "openai":
-        openai_client = OpenAI()
-        openai_response = openai_client.chat.completions.create(
-            model=llm_configuration["model"],
-            frequency_penalty=llm_configuration.get("frequency_penalty", 0),
-            max_tokens=llm_configuration.get("max_tokens", 1000),
-            presence_penalty=llm_configuration.get("presence_penalty", 0),
-            temperature=llm_configuration.get("temperature", 1),
-            top_p=llm_configuration.get("top_p", 1),
-            messages=[
-                {"role": "user", "content": ai_prompt}
-            ],
-            stream=True
-        )
-        st.write("OpenAI Response:")
-        st.write(openai_response)
-    if selected_llm == "gemini":
-        st.warning("Work in progress")
-    if selected_llm == "claude":
-        st.warning("Work in progress")
+    selected_llms = st.session_state['selected_llms']
+    for selected_llm in selected_llms:
+        if selected_llm == "openai":
+            llm_configuration = LLM_CONFIGURATIONS[selected_llm]
+            try:
+                openai_client = OpenAI(api_key=openai_api_key)
+                openai_response = openai_client.chat.completions.create(
+                    model=llm_configuration["model"],
+                    frequency_penalty=llm_configuration.get("frequency_penalty", 0),
+                    max_tokens=llm_configuration.get("max_tokens", 1000),
+                    presence_penalty=llm_configuration.get("presence_penalty", 0),
+                    temperature=llm_configuration.get("temperature", 1),
+                    top_p=llm_configuration.get("top_p", 1),
+                    messages=[
+                        {"role": "user", "content": ai_prompt}
+                    ],
+                    stream=True
+                )
+                st.write("**OpenAI Response:**")
+                st.write(openai_response)
+            except:
+                st.write("**OpenAI Response:**")
+                st.error("Make sure the api key is correct.")
+        if selected_llm == "gemini":
+            llm_configuration = LLM_CONFIGURATIONS[selected_llm]
+            try:
+                generativeai.configure(api_key=gemini_api_key)
+                model = generativeai.GenerativeModel(llm_configuration["model"])
+                gemini_response = model.generate_content(ai_prompt)
+                st.markdown("**Gemini Response:**")
+                st.success(gemini_response.text)
+            except:
+                st.write("**Gemini Response:**")
+                st.error("Make sure the api key is correct.")
+        if selected_llm == "claude":
+            llm_configuration = LLM_CONFIGURATIONS[selected_llm]
+            try:
+                client = anthropic.Anthropic(api_key=claude_api_key)
+                response = client.messages.create(
+                    model=llm_configuration["model"],
+                    max_tokens=llm_configuration["max_tokens"],
+                    temperature=llm_configuration["temperature"],
+                    messages=[
+                        {"role": "user", "content": ai_prompt}  # <-- user prompt
+                    ]
+                )
+                response_cleaned = '\n'.join([block.text for block in response.content if block.type == 'text'])
+                st.write("**Claude Response:**")
+                st.write(response_cleaned)
+            except:
+                st.write("**Claude Response:**")
+                st.error("Make sure the api key is correct.")
 
 def build_prompt():
     final_prompt=""
@@ -120,7 +160,7 @@ def main():
         st.write(final_prompt)
 
     # Display LLM selection dropdown
-    selected_llm = st.selectbox("Select Language Model", options=LLM_CONFIGURATIONS.keys(),key="selected_llm")
+    selected_llms = st.multiselect("Select Language Model", options=LLM_CONFIGURATIONS.keys(),key="selected_llms")
 
     for i in range(len(actions)):
         # Access each dictionary by its index

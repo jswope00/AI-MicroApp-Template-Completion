@@ -1,6 +1,4 @@
-from dotenv import load_dotenv
 
-load_dotenv()
 
 APP_TITLE = "Birthday App"
 APP_INTRO = """This is a simple app that calculates what year you were born. It is for demonstrating the capabilities of a MicroApp
@@ -59,6 +57,12 @@ LLM_CONFIGURATIONS = {
         "temperature": 1,
         "top_p": 1
     },
-    "gemini": {},
-    "claude":{}
+    "gemini": {
+        "model":"gemini-pro"
+    },
+    "claude":{
+        "model":"claude-3-opus-20240229",
+        "max_tokens":1000,
+        "temperature":1
+    }
 }
