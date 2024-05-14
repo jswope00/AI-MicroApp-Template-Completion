@@ -19,7 +19,6 @@ claude_api_key = os.getenv('CLAUDE_API_KEY')
 user_input = {}
 function_map = {
     "text_input": st.text_input,
-    "warning": st.warning,
     "button": st.button,
     "radio": st.radio
 }
@@ -64,14 +63,29 @@ def build_fields(i, my_dict):
         # Example of dynamically accessing the function
         my_input_function = function_map[field_type]
         user_input[field_name] = my_input_function(**kwargs)
-        # Create a text input field
-        #user_input[field_name] = st.text_input(label=field_label,value=field_value,max_chars=field_max_chars,help=field_help,)
+        errors = validate_input(field_name, user_input[field_name], conditions)
+        if errors:
+            for error in errors:
+                st.error(f"{field_name}: {error}")
         globals()[field_name] = user_input[field_name]
+
+def validate_input(field_name, field_value, conditions):
+    errors = []
+    field_conditions = conditions.get(field_name, {})
+    for condition, message in field_conditions.items():
+        try:
+            # Dynamically replace the field name in the condition with the actual value
+            if eval(condition.replace(field_name, f'"{field_value}"')):
+                errors.append(message)
+        except Exception as e:
+            st.error(f"Error evaluating condition: {condition} for field: {field_name}. Error: {e}")
+    return errors
+
 def ai_handler():
     ai_prompt = build_prompt()
     selected_llms = st.session_state['selected_llms']
     for selected_llm in selected_llms:
-        if selected_llm == "openai":
+        if selected_llm == "gpt-3.5":
             llm_configuration = LLM_CONFIGURATIONS[selected_llm]
             try:
                 openai_client = OpenAI(api_key=openai_api_key)
@@ -84,40 +98,47 @@ def ai_handler():
                     top_p=llm_configuration.get("top_p", 1),
                     messages=[
                         {"role": "user", "content": ai_prompt}
-                    ],
-                    stream=True
+                    ]
                 )
+                input_price = int(openai_response.usage.prompt_tokens)*llm_configuration["price_input_token_1M"]/1000000
+                output_price = int(openai_response.usage.completion_tokens)*llm_configuration["price_output_token_1M"]/1000000
+                total_price = input_price+output_price
                 st.write("**OpenAI Response:**")
-                st.write(openai_response)
+                st.success(openai_response.choices[0].message.content)
+                st.write("Price : ${:.6f}".format(total_price))
             except:
                 st.write("**OpenAI Response:**")
                 st.error("Make sure the api key is correct.")
-        if selected_llm == "gemini":
+        if selected_llm == "gemini-pro":
             llm_configuration = LLM_CONFIGURATIONS[selected_llm]
             try:
                 generativeai.configure(api_key=gemini_api_key)
                 model = generativeai.GenerativeModel(llm_configuration["model"])
                 gemini_response = model.generate_content(ai_prompt)
                 st.markdown("**Gemini Response:**")
-                st.success(gemini_response.text)
+                st.success(gemini_response)
             except:
                 st.write("**Gemini Response:**")
                 st.error("Make sure the api key is correct.")
-        if selected_llm == "claude":
+        if selected_llm == "claude-opus":
             llm_configuration = LLM_CONFIGURATIONS[selected_llm]
             try:
                 client = anthropic.Anthropic(api_key=claude_api_key)
-                response = client.messages.create(
+                claude_response = client.messages.create(
                     model=llm_configuration["model"],
                     max_tokens=llm_configuration["max_tokens"],
                     temperature=llm_configuration["temperature"],
                     messages=[
-                        {"role": "user", "content": ai_prompt}  # <-- user prompt
+                        {"role": "user", "content": ai_prompt}
                     ]
                 )
-                response_cleaned = '\n'.join([block.text for block in response.content if block.type == 'text'])
+                input_price = int(claude_response.usage.input_tokens) * llm_configuration["price_input_token_1M"] / 1000000
+                output_price = int(claude_response.usage.output_tokens) * llm_configuration["price_output_token_1M"] / 1000000
+                total_price = input_price + output_price
+                response_cleaned = '\n'.join([block.text for block in claude_response.content if block.type == 'text'])
                 st.write("**Claude Response:**")
-                st.write(response_cleaned)
+                st.success(response_cleaned)
+                st.write("Price : ${:.6f}".format(total_price))
             except:
                 st.write("**Claude Response:**")
                 st.error("Make sure the api key is correct.")

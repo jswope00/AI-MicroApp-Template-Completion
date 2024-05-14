@@ -18,7 +18,6 @@ fields = {
         "type": "text_input",
         "label": "How old are you?",
         "value": 30,
-        "max_chars": 2,
         "help": "Your current age in years"
         },
     "birth_month": {
@@ -26,11 +25,17 @@ fields = {
           "label": "What is your Birth month?",
           "options": ["January", "February", "March","April","May","June","July","August","September","October","November","December"],
           "horizontal": True
-        },
-    "warning": {
-          "type": "warning",
-          "body": "You are too young to use this app."
         }
+}
+
+conditions = {
+    "name": {
+        "len(name) < 4": "Name should be more than 4 characters"
+    },
+    "age": {
+        "not str(age).isdigit()": "Age must be a number",
+        "int(age) < 0 or int(age) > 120": "Age must be between 0 and 120"
+    }
 }
 
 actions = {
@@ -49,20 +54,26 @@ prompt = {
 }
 
 LLM_CONFIGURATIONS = {
-    "openai": {
+    "gpt-3.5": {
         "model": "gpt-3.5-turbo-0125",
         "frequency_penalty": 0,
         "max_tokens": 1000,
         "presence_penalty": 0,
         "temperature": 1,
-        "top_p": 1
+        "top_p": 1,
+        "price_input_token_1M":0.50,
+        "price_output_token_1M":1.50
     },
-    "gemini": {
-        "model":"gemini-pro"
+    "gemini-pro": {
+        "model":"gemini-pro",
+        "price_input_token_1M":7,
+        "price_output_token_1M":21
     },
-    "claude":{
+    "claude-opus":{
         "model":"claude-3-opus-20240229",
         "max_tokens":1000,
-        "temperature":1
+        "temperature":1,
+        "price_input_token_1M":15,
+        "price_output_token_1M":75
     }
 }
