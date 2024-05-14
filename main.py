@@ -85,7 +85,7 @@ def ai_handler():
     ai_prompt = build_prompt()
     selected_llms = st.session_state['selected_llms']
     for selected_llm in selected_llms:
-        if selected_llm == "gpt-3.5":
+        if selected_llm in ["gpt-3.5-turbo","gpt-4-turbo","gpt-4o"]:
             llm_configuration = LLM_CONFIGURATIONS[selected_llm]
             try:
                 openai_client = OpenAI(api_key=openai_api_key)
@@ -100,15 +100,16 @@ def ai_handler():
                         {"role": "user", "content": ai_prompt}
                     ]
                 )
+                print(openai_response)
                 input_price = int(openai_response.usage.prompt_tokens)*llm_configuration["price_input_token_1M"]/1000000
                 output_price = int(openai_response.usage.completion_tokens)*llm_configuration["price_output_token_1M"]/1000000
                 total_price = input_price+output_price
-                st.write("**OpenAI Response:**")
+                st.write(f"**OpenAI Response:** {selected_llm}")
                 st.success(openai_response.choices[0].message.content)
                 st.write("Price : ${:.6f}".format(total_price))
             except:
-                st.write("**OpenAI Response:**")
-                st.error("Make sure the api key is correct.")
+                st.write(f"**OpenAI Response:** {selected_llm}")
+                st.error("Make sure the api key is correct and you have access to these models. GPT-4 and later requires you to buy atleast $5 credits to access them.")
         if selected_llm == "gemini-pro":
             llm_configuration = LLM_CONFIGURATIONS[selected_llm]
             try:
@@ -120,11 +121,11 @@ def ai_handler():
             except:
                 st.write("**Gemini Response:**")
                 st.error("Make sure the api key is correct.")
-        if selected_llm == "claude-opus":
+        if selected_llm in ["claude-opus","claude-sonnet","claude-haiku"]:
             llm_configuration = LLM_CONFIGURATIONS[selected_llm]
             try:
                 client = anthropic.Anthropic(api_key=claude_api_key)
-                claude_response = client.messages.create(
+                anthropic_response = client.messages.create(
                     model=llm_configuration["model"],
                     max_tokens=llm_configuration["max_tokens"],
                     temperature=llm_configuration["temperature"],
@@ -132,15 +133,15 @@ def ai_handler():
                         {"role": "user", "content": ai_prompt}
                     ]
                 )
-                input_price = int(claude_response.usage.input_tokens) * llm_configuration["price_input_token_1M"] / 1000000
-                output_price = int(claude_response.usage.output_tokens) * llm_configuration["price_output_token_1M"] / 1000000
+                input_price = int(anthropic_response.usage.input_tokens) * llm_configuration["price_input_token_1M"] / 1000000
+                output_price = int(anthropic_response.usage.output_tokens) * llm_configuration["price_output_token_1M"] / 1000000
                 total_price = input_price + output_price
-                response_cleaned = '\n'.join([block.text for block in claude_response.content if block.type == 'text'])
-                st.write("**Claude Response:**")
+                response_cleaned = '\n'.join([block.text for block in anthropic_response.content if block.type == 'text'])
+                st.write(f"**Anthropic Response: {selected_llm}**")
                 st.success(response_cleaned)
                 st.write("Price : ${:.6f}".format(total_price))
             except:
-                st.write("**Claude Response:**")
+                st.write(f"**Anthropic Response: {selected_llm}**")
                 st.error("Make sure the api key is correct.")
 
 def build_prompt():
@@ -186,6 +187,7 @@ def main():
     for i in range(len(actions)):
         # Access each dictionary by its index
         build_fields(i, actions)
+
 
 
 if __name__ == "__main__":
