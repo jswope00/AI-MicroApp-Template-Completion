@@ -1,11 +1,8 @@
-# app.py
 import streamlit as st
 from config import *
-from datetime import datetime, timedelta
-import json
 import os
 from openai import OpenAI
-from google import generativeai
+import google.generativeai as generativeai
 import anthropic
 
 from dotenv import load_dotenv
@@ -20,11 +17,16 @@ user_input = {}
 function_map = {
     "text_input": st.text_input,
     "button": st.button,
-    "radio": st.radio
+    "radio": st.radio,
+    "selectbox": st.selectbox,
+    "text_area": st.text_area,
+    "checkbox": st.checkbox
 }
+
 # Create variables based on the keys in the fields dictionary
 for key, value in fields.items():
     globals()[key] = None
+
 def build_fields(i, my_dict):
     field_name = list(my_dict.keys())[i]
     field_dict = list(my_dict.values())[i]
@@ -63,33 +65,16 @@ def build_fields(i, my_dict):
         # Example of dynamically accessing the function
         my_input_function = function_map[field_type]
         user_input[field_name] = my_input_function(**kwargs)
-        errors = validate_input(field_name, user_input[field_name], conditions)
-        if errors:
-            for error in errors:
-                st.error(f"{field_name}: {error}")
         globals()[field_name] = user_input[field_name]
-
-def validate_input(field_name, field_value, conditions):
-    errors = []
-    field_conditions = conditions.get(field_name, {})
-    for condition, message in field_conditions.items():
-        try:
-            # Dynamically replace the field name in the condition with the actual value
-            if eval(condition.replace(field_name, f'"{field_value}"')):
-                errors.append(message)
-        except Exception as e:
-            st.error(f"Error evaluating condition: {condition} for field: {field_name}. Error: {e}")
-    return errors
 
 def ai_handler():
     ai_prompt = build_prompt()
-    selected_llms = st.session_state['selected_llms']
-    for selected_llm in selected_llms:
-        if selected_llm in ["gpt-3.5-turbo","gpt-4-turbo","gpt-4o"]:
-            llm_configuration = LLM_CONFIGURATIONS[selected_llm]
-            try:
-                openai_client = OpenAI(api_key=openai_api_key)
-                openai_response = openai_client.chat.completions.create(
+    selected_llm = st.session_state['selected_llm']
+    if selected_llm in ["gpt-3.5-turbo", "gpt-4-turbo", "gpt-4o"]:
+        llm_configuration = LLM_CONFIGURATIONS[selected_llm]
+        try:
+            openai_client = OpenAI(api_key=openai_api_key)
+            response = openai_client.chat.completions.create(
                     model=llm_configuration["model"],
                     frequency_penalty=llm_configuration.get("frequency_penalty", 0),
                     max_tokens=llm_configuration.get("max_tokens", 1000),
@@ -100,72 +85,61 @@ def ai_handler():
                         {"role": "user", "content": ai_prompt}
                     ]
                 )
-                print(openai_response)
-                input_price = int(openai_response.usage.prompt_tokens)*llm_configuration["price_input_token_1M"]/1000000
-                output_price = int(openai_response.usage.completion_tokens)*llm_configuration["price_output_token_1M"]/1000000
-                total_price = input_price+output_price
-                st.write(f"**OpenAI Response:** {selected_llm}")
-                st.success(openai_response.choices[0].message.content)
-                st.write("Price : ${:.6f}".format(total_price))
-            except:
-                st.write(f"**OpenAI Response:** {selected_llm}")
-                st.error("Make sure the api key is correct and you have access to these models. GPT-4 and later requires you to buy atleast $5 credits to access them.")
-        if selected_llm == "gemini-pro":
-            llm_configuration = LLM_CONFIGURATIONS[selected_llm]
-            try:
-                generativeai.configure(api_key=gemini_api_key)
-                model = generativeai.GenerativeModel(llm_configuration["model"])
-                gemini_response = model.generate_content(ai_prompt)
-                st.markdown("**Gemini Response:**")
-                st.success(gemini_response)
-            except:
-                st.write("**Gemini Response:**")
-                st.error("Make sure the api key is correct.")
-        if selected_llm in ["claude-opus","claude-sonnet","claude-haiku"]:
-            llm_configuration = LLM_CONFIGURATIONS[selected_llm]
-            try:
-                client = anthropic.Anthropic(api_key=claude_api_key)
-                anthropic_response = client.messages.create(
-                    model=llm_configuration["model"],
-                    max_tokens=llm_configuration["max_tokens"],
-                    temperature=llm_configuration["temperature"],
-                    messages=[
-                        {"role": "user", "content": ai_prompt}
-                    ]
-                )
-                input_price = int(anthropic_response.usage.input_tokens) * llm_configuration["price_input_token_1M"] / 1000000
-                output_price = int(anthropic_response.usage.output_tokens) * llm_configuration["price_output_token_1M"] / 1000000
-                total_price = input_price + output_price
-                response_cleaned = '\n'.join([block.text for block in anthropic_response.content if block.type == 'text'])
-                st.write(f"**Anthropic Response: {selected_llm}**")
-                st.success(response_cleaned)
-                st.write("Price : ${:.6f}".format(total_price))
-            except:
-                st.write(f"**Anthropic Response: {selected_llm}**")
-                st.error("Make sure the api key is correct.")
+            input_price = int(response.usage.prompt_tokens) * llm_configuration["price_input_token_1M"] / 1000000
+            output_price = int(response.usage.completion_tokens) * llm_configuration["price_output_token_1M"] / 1000000
+            total_price = input_price + output_price
+            st.write(f"**OpenAI Response:** {selected_llm}")
+            st.success(response.choices[0].message.content.format())
+            st.write("Price : ${:.6f}".format(total_price))
+        except Exception as e:
+            st.write(f"**OpenAI Response:** {selected_llm}")
+            st.error(f"Error: {e}")
+    if selected_llm == "gemini-pro":
+        llm_configuration = LLM_CONFIGURATIONS[selected_llm]
+        try:
+            generativeai.configure(api_key=gemini_api_key)
+            model = generativeai.GenerativeModel(llm_configuration["model"])
+            gemini_response = model.generate_content(ai_prompt)
+            st.markdown("**Gemini Response:**")
+            st.success(gemini_response)
+        except Exception as e:
+            st.write("**Gemini Response:**")
+            st.error(f"Error: {e}")
+    if selected_llm in ["claude-opus", "claude-sonnet", "claude-haiku"]:
+        llm_configuration = LLM_CONFIGURATIONS[selected_llm]
+        try:
+            client = anthropic.Anthropic(api_key=claude_api_key)
+            anthropic_response = client.messages.create(
+                model=llm_configuration["model"],
+                max_tokens=llm_configuration["max_tokens"],
+                temperature=llm_configuration["temperature"],
+                messages=[
+                    {"role": "user", "content": ai_prompt}
+                ]
+            )
+            input_price = int(anthropic_response.usage.input_tokens) * llm_configuration[
+                "price_input_token_1M"] / 1000000
+            output_price = int(anthropic_response.usage.output_tokens) * llm_configuration[
+                "price_output_token_1M"] / 1000000
+            total_price = input_price + output_price
+            response_cleaned = '\n'.join([block.text for block in anthropic_response.content if block.type == 'text'])
+            st.write(f"**Anthropic Response: {selected_llm}**")
+            st.success(response_cleaned)
+            st.write("Price : ${:.6f}".format(total_price))
+        except Exception as e:
+            st.write(f"**Anthropic Response: {selected_llm}**")
+            st.error(f"Error: {e}")
+
+
 
 def build_prompt():
-    final_prompt=""
-    for key, value in prompt.items():
-        # Use a regular expression to find all placeholders in the string
-        import re
-        placeholders = re.findall(r'\{(.*?)\}', value)
-
-        # Format the prompt with the corresponding variables
-        formatted_prompt = value.format(**{placeholder: globals()[placeholder] for placeholder in placeholders})
-
-        # Concatenate the formatted prompts
-        final_prompt += formatted_prompt + " "
-
-    # Remove trailing whitespace
-    final_prompt = final_prompt.strip()
+    final_prompt = generate_mcq_prompt(user_input)
     return final_prompt
 
 
 action_map = {"ai_handler": ai_handler}
 
 def main():
-
     st.title(APP_TITLE)
     st.markdown(APP_INTRO)
 
@@ -182,13 +156,12 @@ def main():
         st.write(final_prompt)
 
     # Display LLM selection dropdown
-    selected_llms = st.multiselect("Select Language Model", options=LLM_CONFIGURATIONS.keys(),key="selected_llms")
+    selected_llm = st.selectbox("Select Language Model", options=LLM_CONFIGURATIONS.keys(), key="selected_llm")
 
     for i in range(len(actions)):
         # Access each dictionary by its index
         build_fields(i, actions)
 
-
-
 if __name__ == "__main__":
     main()
+

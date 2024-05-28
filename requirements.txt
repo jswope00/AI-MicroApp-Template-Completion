@@ -1,4 +1,5 @@
 streamlit
-python-dotenv
 openai
-requests
+anthropic
+google-generativeai
+python-dotenv
