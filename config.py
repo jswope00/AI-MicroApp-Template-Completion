@@ -113,4 +113,7 @@ LLM_CONFIGURATIONS = {
 
 }
 
-
+APP_CONFIG = {
+    "revisable": True,
+    "max_revisions": 3
+}
