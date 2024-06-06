@@ -32,6 +32,8 @@ if 'show_revise' not in st.session_state:
     st.session_state['show_revise'] = False
 if 'full_prompt' not in st.session_state:
     st.session_state['full_prompt'] = ""
+if 'history' not in st.session_state:
+    st.session_state['history'] = []
 
 # Create variables based on the keys in the fields dictionary
 for key, value in fields.items():
@@ -125,6 +127,8 @@ def ai_handler(revision_prompt=""):
                 st.success(st.session_state['output'])
                 st.write("Price : ${:.6f}".format(total_price))
                 st.session_state['show_revise'] = True
+                # Save to history
+                st.session_state['history'].append({"prompt": st.session_state['full_prompt'], "response": st.session_state['output']})
             except Exception as e:
                 st.write(f"**OpenAI Response:** {selected_llm}")
                 st.error(f"Make sure the api key is correct and you have access to these models. GPT-4 and later requires you to buy at least $5 credits to access them. Error: {e}")
@@ -138,6 +142,8 @@ def ai_handler(revision_prompt=""):
                 st.markdown("**Gemini Response:**")
                 st.success(st.session_state['output'])
                 st.session_state['show_revise'] = True
+                # Save to history
+                st.session_state['history'].append({"prompt": st.session_state['full_prompt'], "response": st.session_state['output']})
             except Exception as e:
                 st.write("**Gemini Response:**")
                 st.error(f"Make sure the api key is correct. Error: {e}")
@@ -162,6 +168,8 @@ def ai_handler(revision_prompt=""):
                 st.success(st.session_state['output'])
                 st.write("Price : ${:.6f}".format(total_price))
                 st.session_state['show_revise'] = True
+                # Save to history
+                st.session_state['history'].append({"prompt": st.session_state['full_prompt'], "response": st.session_state['output']})
             except Exception as e:
                 st.write(f"**Anthropic Response: {selected_llm}**")
                 st.error(f"Make sure the api key is correct. Error: {e}")
@@ -185,8 +193,8 @@ def build_prompt():
 
 def revise_handler():
     if st.session_state['revision_count'] < APP_CONFIG['max_revisions']:
-        revision_prompt = st.text_area("Enter your revised request:", key=f"revision_input_{st.session_state['revision_count']}")
-        if st.button("Submit Revision", key=f"submit_revision_button_{st.session_state['revision_count']}"):
+        revision_prompt = st.text_input("Enter your revised request:", key=f"revision_input_{st.session_state['revision_count']}")
+        if st.button("Double click to submit", key=f"submit_revision_button_{st.session_state['revision_count']}"):
             st.session_state['revision_count'] += 1
             ai_handler(revision_prompt)
             st.write(f"Revisions left: {APP_CONFIG['max_revisions'] - st.session_state['revision_count']}")
@@ -221,6 +229,13 @@ def main():
     # Show the revise button if the revisable option is enabled and initial output is generated
     if APP_CONFIG['revisable'] and st.session_state['show_revise']:
         revise_handler()
+
+    # Display history
+    if st.session_state['history']:
+        with st.expander("Session History", expanded=False):
+            for i, entry in enumerate(st.session_state['history']):
+                st.write(f"**Prompt {i+1}:** {entry['prompt']}")
+                st.write(f"**Response {i+1}:** {entry['response']}")
 
 if __name__ == "__main__":
     main()
