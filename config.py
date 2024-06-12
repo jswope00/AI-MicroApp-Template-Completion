@@ -47,7 +47,7 @@ fields = {
         "type": "selectbox",
         "label": "Question difficulty level:",
         "options": ['Grade School', 'High School', 'University', 'Other'],
-        "value": "University",
+        "index": 2,
         "key": "question_level"
     },
     "custom_level": {
@@ -58,7 +58,7 @@ fields = {
     "distractors_num": {
         "type": "selectbox",
         "label": "Number of distractors:",
-        "value": 3,
+        "index": 2,
         "options": [1, 2, 3, 4, 5],
         "key": "distractors_num"
     },
