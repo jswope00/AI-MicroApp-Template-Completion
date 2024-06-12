@@ -20,7 +20,8 @@ function_map = {
     "radio": st.radio,
     "selectbox": st.selectbox,
     "text_area": st.text_area,
-    "checkbox": st.checkbox
+    "checkbox": st.checkbox,
+    "slider": st.slider
 }
 
 # Create variables based on the keys in the fields dictionary
@@ -39,6 +40,9 @@ def build_fields(i, my_dict):
     field_on_click = field_dict.get("on_click",None)
     field_options = field_dict.get("options","")
     field_horizontal = field_dict.get("horizontal",False)
+    field_min_value = field_dict.get("min_value",None)
+    field_max_value = field_dict.get("max_value",None)
+    field_step = field_dict.get("step",None)
     kwargs = {}
     if field_label:
         kwargs['label'] = field_label
@@ -56,6 +60,12 @@ def build_fields(i, my_dict):
         kwargs['on_click'] = field_on_click
     if field_horizontal:
         kwargs['horizontal'] = field_horizontal
+    if field_min_value:
+        kwargs['min_value'] = field_min_value
+    if field_max_value:
+        kwargs['max_value'] = field_max_value
+    if field_step:
+        kwargs['step'] = field_step
     if field_type == "button":
         if field_on_click:
             # If there's an on_click action defined, attach it to the button
@@ -133,7 +143,7 @@ def ai_handler():
 
 
 def build_prompt():
-    final_prompt = generate_mcq_prompt(user_input)
+    final_prompt = generate_prompt(user_input)
     return final_prompt
 
 

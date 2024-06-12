@@ -15,7 +15,7 @@ fields = {
     "topic_content": {
         "type": "text_area",
         "label": "Enter the content for question generation:",
-        "max_chars": 50000,
+        "max_chars": 200000,
         "key": "topic_content",
         "value": "AI processors like CPUs, GPUs, TPUs, and LPUs each serve unique roles in AI applications. CPUs, such as Intel Core and Apple M1/M2, are versatile for general-purpose computing and small datasets. GPUs, like Nvidia Tesla, excel in parallel processing for large-scale machine learning and deep learning tasks. TPUs, developed by Google, optimize TensorFlow operations, boosting performance for AI applications using this framework. LPUs, pioneered by Groq, specialize in natural language processing, enhancing chatbots and other language-based AI. Choosing the right processor depends on specific needs: CPUs for general tasks, GPUs for large data, TPUs for TensorFlow, and LPUs for language processing."
     },
@@ -151,7 +151,7 @@ LLM_CONFIGURATIONS = {
     }
 }
 
-def generate_mcq_prompt(config):
+def generate_prompt(config):
     topic_content = config.get("topic_content", "")
     original_content_only = config.get("original_content_only", False)
     learning_objective = config.get("learning_objective", "")
