@@ -35,6 +35,7 @@ def build_fields(i, my_dict):
     field_label = field_dict.get("label","")
     field_body = field_dict.get("body","")
     field_value = field_dict.get("value","")
+    field_index = field_dict.get("index",None)
     field_max_chars = field_dict.get("max_chars",None)
     field_help = field_dict.get("help","")
     field_on_click = field_dict.get("on_click",None)
@@ -50,6 +51,8 @@ def build_fields(i, my_dict):
         kwargs['body'] = field_body
     if field_value:
         kwargs['value'] = field_value
+    if field_index:
+        kwargs['index'] = field_index
     if field_options:
         kwargs['options'] = field_options
     if field_max_chars:
