@@ -1,19 +1,13 @@
+from openai import OpenAI
 import streamlit as st
 from config import *
-from datetime import datetime, timedelta
-import json
 import os
-from openai import OpenAI
-from google import generativeai
-import anthropic
-
 from dotenv import load_dotenv
+import re
 
 load_dotenv()
 
 openai_api_key = os.getenv('OPENAI_API_KEY')
-gemini_api_key = os.getenv('GOOGLE_API_KEY')
-claude_api_key = os.getenv('CLAUDE_API_KEY')
 
 user_input = {}
 function_map = {
@@ -23,17 +17,21 @@ function_map = {
     "text_area": st.text_area
 }
 
-# Initialize session state for revision count and other variables
-if 'revision_count' not in st.session_state:
-    st.session_state['revision_count'] = 0
+# Initialize session state for variables
 if 'output' not in st.session_state:
     st.session_state['output'] = ""
-if 'show_revise' not in st.session_state:
-    st.session_state['show_revise'] = False
 if 'full_prompt' not in st.session_state:
     st.session_state['full_prompt'] = ""
 if 'history' not in st.session_state:
     st.session_state['history'] = []
+if 'chat_history' not in st.session_state:
+    st.session_state['chat_history'] = []
+if 'additional_prompt' not in st.session_state:
+    st.session_state['additional_prompt'] = ""
+if 'initial_prompt' not in st.session_state:
+    st.session_state['initial_prompt'] = ""
+if 'revision_count' not in st.session_state:
+    st.session_state['revision_count'] = 0
 
 # Create variables based on the keys in the fields dictionary
 for key, value in fields.items():
@@ -42,15 +40,15 @@ for key, value in fields.items():
 def build_fields(i, my_dict):
     field_name = list(my_dict.keys())[i]
     field_dict = list(my_dict.values())[i]
-    field_type = field_dict.get("type","")
-    field_label = field_dict.get("label","")
-    field_body = field_dict.get("body","")
-    field_value = field_dict.get("value","")
-    field_max_chars = field_dict.get("max_chars",None)
-    field_help = field_dict.get("help","")
-    field_on_click = field_dict.get("on_click",None)
-    field_options = field_dict.get("options","")
-    field_horizontal = field_dict.get("horizontal",False)
+    field_type = field_dict.get("type", "")
+    field_label = field_dict.get("label", "")
+    field_body = field_dict.get("body", "")
+    field_value = field_dict.get("value", "")
+    field_max_chars = field_dict.get("max_chars", None)
+    field_help = field_dict.get("help", "")
+    field_on_click = field_dict.get("on_click", None)
+    field_options = field_dict.get("options", "")
+    field_horizontal = field_dict.get("horizontal", False)
     kwargs = {}
     if field_label:
         kwargs['label'] = field_label
@@ -95,118 +93,80 @@ def validate_input(field_name, field_value, conditions):
             st.error(f"Error evaluating condition: {condition} for field: {field_name}. Error: {e}")
     return errors
 
-def ai_handler(revision_prompt=""):
-    if revision_prompt:
-        st.session_state['full_prompt'] += " " + revision_prompt
-    else:
+def ai_handler(initial_prompt=False):
+    if initial_prompt:
         st.session_state['full_prompt'] = build_prompt()
+        st.session_state['initial_prompt'] = st.session_state['full_prompt']
+    else:
+        st.session_state['full_prompt'] = st.session_state['initial_prompt'] + " " + st.session_state['output'] + " " + st.session_state['additional_prompt']
 
-    selected_llms = st.session_state['selected_llms']
-    for selected_llm in selected_llms:
-        if selected_llm in ["gpt-3.5-turbo","gpt-4-turbo","gpt-4o"]:
-            llm_configuration = LLM_CONFIGURATIONS[selected_llm]
-            try:
-                openai_client = OpenAI(api_key=openai_api_key)
-                openai_response = openai_client.chat.completions.create(
-                    model=llm_configuration["model"],
-                    frequency_penalty=llm_configuration.get("frequency_penalty", 0),
-                    max_tokens=llm_configuration.get("max_tokens", 1000),
-                    presence_penalty=llm_configuration.get("presence_penalty", 0),
-                    temperature=llm_configuration.get("temperature", 1),
-                    top_p=llm_configuration.get("top_p", 1),
-                    messages=[
-                        {"role": "user", "content": st.session_state['full_prompt']}
-                    ]
-                )
-                print(openai_response)
-                input_price = int(openai_response.usage.prompt_tokens) * llm_configuration["price_input_token_1M"] / 1000000
-                output_price = int(openai_response.usage.completion_tokens) * llm_configuration["price_output_token_1M"] / 1000000
-                total_price = input_price + output_price
-                st.session_state['output'] = openai_response.choices[0].message.content
-                st.write(f"**OpenAI Response:** {selected_llm}")
-                st.success(st.session_state['output'])
-                st.write("Price : ${:.6f}".format(total_price))
+    selected_llm = st.session_state['selected_llm']
+    if selected_llm in ["gpt-3.5-turbo", "gpt-4-turbo", "gpt-4o"]:
+        llm_configuration = LLM_CONFIGURATIONS[selected_llm]
+        try:
+            openai_client = OpenAI(api_key=openai_api_key)
+            response = openai_client.chat.completions.create(
+                model=llm_configuration["model"],
+                messages=[
+                    {"role": "user", "content": st.session_state['full_prompt']}
+                ],
+                max_tokens=llm_configuration.get("max_tokens", 1000),
+                temperature=llm_configuration.get("temperature", 1),
+                top_p=llm_configuration.get("top_p", 1),
+                frequency_penalty=llm_configuration.get("frequency_penalty", 0),
+                presence_penalty=llm_configuration.get("presence_penalty", 0)
+            )
+            st.session_state['output'] = response.choices[0].message.content
+            st.session_state['history'].append(
+                {"prompt": st.session_state['full_prompt'], "response": st.session_state['output']})
+            st.session_state['chat_history'].append({"role": "user", "content": st.session_state['full_prompt']})
+            st.session_state['chat_history'].append({"role": "assistant", "content": st.session_state['output']})
+
+            # Ensure history does not exceed limit
+            if len(st.session_state['chat_history']) > APP_CONFIG['max_revisions'] * 2:
+                st.session_state['chat_history'] = st.session_state['chat_history'][
+                                                   -(APP_CONFIG['max_revisions'] * 2):]
+
+            input_price = int(response.usage.prompt_tokens) * llm_configuration["price_input_token_1M"] / 1000000
+            output_price = int(response.usage.completion_tokens) * llm_configuration[
+                "price_output_token_1M"] / 1000000
+            total_price = input_price + output_price
+
+            st.write(f"**OpenAI Response:** {selected_llm}")
+            st.success(st.session_state['output'])
+            st.write(f"Price: ${total_price:.6f}")
+
+            if st.session_state['revision_count'] < APP_CONFIG['max_revisions']:
                 st.session_state['show_revise'] = True
-                # Save to history
-                st.session_state['history'].append({"prompt": st.session_state['full_prompt'], "response": st.session_state['output']})
-            except Exception as e:
-                st.write(f"**OpenAI Response:** {selected_llm}")
-                st.error(f"Make sure the api key is correct and you have access to these models. GPT-4 and later requires you to buy at least $5 credits to access them. Error: {e}")
-        if selected_llm == "gemini-pro":
-            llm_configuration = LLM_CONFIGURATIONS[selected_llm]
-            try:
-                generativeai.configure(api_key=gemini_api_key)
-                model = generativeai.GenerativeModel(llm_configuration["model"])
-                gemini_response = model.generate_content(st.session_state['full_prompt'])
-                st.session_state['output'] = gemini_response
-                st.markdown("**Gemini Response:**")
-                st.success(st.session_state['output'])
-                st.session_state['show_revise'] = True
-                # Save to history
-                st.session_state['history'].append({"prompt": st.session_state['full_prompt'], "response": st.session_state['output']})
-            except Exception as e:
-                st.write("**Gemini Response:**")
-                st.error(f"Make sure the api key is correct. Error: {e}")
-        if selected_llm in ["claude-opus","claude-sonnet","claude-haiku"]:
-            llm_configuration = LLM_CONFIGURATIONS[selected_llm]
-            try:
-                client = anthropic.Anthropic(api_key=claude_api_key)
-                anthropic_response = client.messages.create(
-                    model=llm_configuration["model"],
-                    max_tokens=llm_configuration["max_tokens"],
-                    temperature=llm_configuration["temperature"],
-                    messages=[
-                        {"role": "user", "content": st.session_state['full_prompt']}
-                    ]
-                )
-                input_price = int(anthropic_response.usage.input_tokens) * llm_configuration["price_input_token_1M"] / 1000000
-                output_price = int(anthropic_response.usage.output_tokens) * llm_configuration["price_output_token_1M"] / 1000000
-                total_price = input_price + output_price
-                response_cleaned = '\n'.join([block.text for block in anthropic_response.content if block.type == 'text'])
-                st.session_state['output'] = response_cleaned
-                st.write(f"**Anthropic Response: {selected_llm}**")
-                st.success(st.session_state['output'])
-                st.write("Price : ${:.6f}".format(total_price))
-                st.session_state['show_revise'] = True
-                # Save to history
-                st.session_state['history'].append({"prompt": st.session_state['full_prompt'], "response": st.session_state['output']})
-            except Exception as e:
-                st.write(f"**Anthropic Response: {selected_llm}**")
-                st.error(f"Make sure the api key is correct. Error: {e}")
+            else:
+                st.session_state['show_revise'] = False
+
+        except Exception as e:
+            st.write(f"**OpenAI Response:** {selected_llm}")
+            st.error(f"Error: {e}")
 
 def build_prompt():
     final_prompt = ""
     for key, value in prompt.items():
         # Use a regular expression to find all placeholders in the string
-        import re
         placeholders = re.findall(r'\{(.*?)\}', value)
 
         # Format the prompt with the corresponding variables
         formatted_prompt = value.format(**{placeholder: globals()[placeholder] for placeholder in placeholders})
-
         # Concatenate the formatted prompts
         final_prompt += formatted_prompt + " "
+
+    # Add the additional prompt from user input
+    if st.session_state['additional_prompt']:
+        final_prompt += st.session_state['additional_prompt']
 
     # Remove trailing whitespace
     final_prompt = final_prompt.strip()
     return final_prompt
 
-def revise_handler():
-    if st.session_state['revision_count'] < APP_CONFIG['max_revisions']:
-        revision_prompt = st.text_input("Enter your revised request:", key=f"revision_input_{st.session_state['revision_count']}")
-        if st.button("Double click to submit", key=f"submit_revision_button_{st.session_state['revision_count']}"):
-            st.session_state['revision_count'] += 1
-            ai_handler(revision_prompt)
-            st.write(f"Revisions left: {APP_CONFIG['max_revisions'] - st.session_state['revision_count']}")
-    else:
-        st.warning("You have reached the maximum number of revisions.")
-
-action_map = {"ai_handler": ai_handler, "revise_handler": revise_handler}
-
 def main():
     st.title(APP_TITLE)
     st.markdown(APP_INTRO)
-
     if APP_HOW_IT_WORKS:
         with st.expander("Learn how this works", expanded=False):
             st.markdown(APP_HOW_IT_WORKS)
@@ -220,22 +180,31 @@ def main():
         st.write(final_prompt)
 
     # Display LLM selection dropdown
-    selected_llms = st.multiselect("Select Language Model", options=LLM_CONFIGURATIONS.keys(), key="selected_llms")
+    selected_llm = st.selectbox("Select Language Model", options=LLM_CONFIGURATIONS.keys(), key="selected_llm")
 
-    for i in range(len(actions)):
-        # Access each dictionary by its index
-        build_fields(i, actions)
+    if st.button("Get Initial Response"):
+        ai_handler(initial_prompt=True)
 
-    # Show the revise button if the revisable option is enabled and initial output is generated
-    if APP_CONFIG['revisable'] and st.session_state['show_revise']:
-        revise_handler()
+    # Display the initial response
+    if st.session_state['output']:
+        st.subheader("Response")
+        st.write(st.session_state['output'])
 
-    # Display history
+        # Input for additional prompt
+        st.session_state['additional_prompt'] = st.text_input("Enter additional prompt", value="")
+
+        if st.button("Revise") and st.session_state['revision_count'] < APP_CONFIG[
+            'max_revisions']:
+            st.session_state['revision_count'] += 1
+            ai_handler()
+
+    # Display session history in an expander
     if st.session_state['history']:
         with st.expander("Session History", expanded=False):
             for i, entry in enumerate(st.session_state['history']):
-                st.write(f"**Prompt {i+1}:** {entry['prompt']}")
-                st.write(f"**Response {i+1}:** {entry['response']}")
+                st.write(f"**Prompt {i + 1}:** {entry['prompt']}")
+                st.write(f"**Response {i + 1}:** {entry['response']}")
+                st.write("-----")
 
 if __name__ == "__main__":
     main()
