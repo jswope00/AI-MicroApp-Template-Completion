@@ -1,5 +1,5 @@
 import streamlit as st
-from config import *
+from config_clinical_feedback import *
 import os
 from openai import OpenAI
 import google.generativeai as generativeai
