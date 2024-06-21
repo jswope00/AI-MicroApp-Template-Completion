@@ -21,7 +21,8 @@ function_map = {
     "selectbox": st.selectbox,
     "text_area": st.text_area,
     "checkbox": st.checkbox,
-    "slider": st.slider
+    "slider": st.slider,
+    "number_input": st.number_input
 }
 
 # Create variables based on the keys in the fields dictionary
@@ -166,7 +167,7 @@ def main():
 
     with st.expander("Show prompt"):
         final_prompt = build_prompt()
-        st.write(final_prompt)
+        st.markdown(final_prompt)
 
     # Display LLM selection dropdown
     selected_llm = st.selectbox("Select Language Model", options=LLM_CONFIGURATIONS.keys(), key="selected_llm")
